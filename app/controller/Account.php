@@ -31,7 +31,7 @@ use think\exception\ValidateException;
 
 class Account extends BaseController
 {
-    // 登录
+    // 登录.
     public function login(Request $request)
     {
         $data = $request->param();
