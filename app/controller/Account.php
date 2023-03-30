@@ -95,7 +95,7 @@ class Account extends BaseController
             $userold->reg_ip     = $ip;
             $userold->save();
             $this->setLog($userold['id'], "(注册)加入了系统", $this->city($ip), $ip);
-        }else{
+        } else {
             $user = new UserModel;
             $user->save([
                 'role_id'  =>  $role['id'],
@@ -109,7 +109,6 @@ class Account extends BaseController
                 'reg_ip' =>  $ip,
             ]);
             $this->setLog($user['id'], "(注册)加入了系统", $this->city($ip), $ip);
-            
         }
         return $this->create(null, '注册成功', 200);
     }
