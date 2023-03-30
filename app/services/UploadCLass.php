@@ -34,26 +34,50 @@ class UploadCLass
     protected $storage = [];
 
     /**
-     * 生成路径
-     *
-     * @var
+     * 文件名
      */
-    private $getPath;
+    private $fileName;
 
+    /**
+     * 文件路径
+     */
+    private $filePath;
 
-    public function __construct()
+    /**
+     * 储存目录
+     */
+    private $folder;
+
+    /**
+     * 文件哈希值
+     */
+    private string $fileHash = '';
+
+    public function __construct($folder = '')
     {
-        $year = date("Y");
-        $month = date("m");
-        $this->getPath = FOLDER . $year . '/' . $month . '/';
+        $this->folder = $folder;
     }
 
-    //  生成新名称
-    public function getName($name)
+    // 生成文件名
+    public function getFileName($file_path)
     {
-        $str_img = explode('.', $name);
-        $format = '.' . $str_img[count($str_img) - 1];
-        return  substr(md5(date("YmdHis") . rand(1000, 9999)), 8, 16) . $format;
+        $hash = $this->getHash($file_path);
+        return substr($hash, -2);
+    }
+
+    // 生成上传路径
+    public function getUploadPath($file_path, $folder = '')
+    {
+        $hash = $this->getHash($file_path);
+        $path = FOLDER . $folder . '/' . substr($hash, 0, 2);
+        is_dir($path) || mkdir($path, 0777, true);
+        return $path;
+    }
+
+    public function getHash($file_path, $algo = 'md5')
+    {
+        $this->fileHash || $this->fileHash = hash_file($algo, $file_path);
+        return $this->fileHash;
     }
 
     /**
@@ -65,6 +89,10 @@ class UploadCLass
     public function create($file, $sid)
     {
         $this->storage = StorageModel::find($sid);
+
+        $this->fileName = $this->getFileName($file['tmp_name']);
+        $this->filePath = $this->getUploadPath($file['tmp_name'], $this->folder) . $this->fileName;
+
         switch ($this->storage['type']) {
             case 'local':
                 return $this->location_upload($file);
@@ -135,17 +163,15 @@ class UploadCLass
 
         // 获取网站协议
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-        $path = './' . $this->getPath;
-        if (!file_exists($path)) {
-            mkdir($path, 0777, true);
-        }
-        $newName = $this->getName($file['name']);
+
+        $tmp_file = $file['tmp_name'];
+
         // 本地上传
-        if (move_uploaded_file($file["tmp_name"], $path . $newName)) {
-            $url = $protocol . $_SERVER['HTTP_HOST'] . '/' . $this->getPath . $newName;
+        if (move_uploaded_file($tmp_file, $this->filePath)) {
+            $url = $protocol . $_SERVER['HTTP_HOST'] . '/' . $this->filePath;
             return array(
-                'path' => $this->getPath . $newName,
-                'name' => $newName,
+                'path' => $this->filePath,
+                'name' => $this->fileName,
                 'url' => $url,
                 'state' => 1,
             );
@@ -164,16 +190,14 @@ class UploadCLass
      */
     public function aliyuncs_upload($file)
     {
-        $name = $this->getName($file['name']);
-        $path = $this->getPath . $name;
-        $filePath = $file['tmp_name'];
+        $tmp_file = $file['tmp_name'];
         try {
             $ossClient = new OssClient($this->storage['AccessKey'], $this->storage['SecretKey'], $this->storage['region']);
-            $ossClient->uploadFile($this->storage['bucket'], $path, $filePath);
+            $ossClient->uploadFile($this->storage['bucket'], $this->filePath, $tmp_file);
             return array(
-                'path' => $path,
-                'name' => $name,
-                'url' => $this->storage['space_domain'] . '/' . $path,
+                'path' => $this->filePath,
+                'name' => $this->fileName,
+                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
                 'state' => 1,
             );
         } catch (OssException $e) {
@@ -200,19 +224,17 @@ class UploadCLass
                 )
             )
         );
-        $local_path = $file['tmp_name'];
+        $tmp_file = $file['tmp_name'];
         try {
-            $name = $this->getName($file['name']);
-            $path = $this->getPath . $name;
             $cosClient->upload(
                 $bucket = $this->storage['bucket'], //格式：BucketName-APPID
-                $key = $path,
-                $body = fopen($local_path, 'rb')
+                $key = $this->filePath,
+                $body = fopen($tmp_file, 'rb')
             );
             return array(
-                'path' => $path,
-                'name' => $name,
-                'url' => $this->storage['space_domain'] . '/' . $path,
+                'path' => $this->filePath,
+                'name' => $this->fileName,
+                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
                 'state' => 1,
             );
         } catch (\Exception $e) {
@@ -260,11 +282,9 @@ class UploadCLass
         // 构建 UploadManager 对象
         $uploadMgr = new UploadManager();
         // 要上传文件的本地路径
-        $filePath = $file['tmp_name'];
+        $tmp_file = $file['tmp_name'];
         // 上传到七牛后保存的文件名
-        $name = $this->getName($file['name']);
-        $path = $this->getPath . $name;
-        list($ret, $err) = $uploadMgr->putFile($token, $path, $filePath);
+        list($ret, $err) = $uploadMgr->putFile($token, $this->filePath, $tmp_file);
 
         if ($err !== null) {
             return array(
@@ -273,9 +293,9 @@ class UploadCLass
             );
         } else {
             return array(
-                'path' => $path,
-                'name' => $name,
-                'url' => $this->storage['space_domain'] . '/' . $path,
+                'path' => $this->filePath,
+                'name' => $this->fileName,
+                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
                 'state' => 1,
             );
         }
@@ -290,16 +310,13 @@ class UploadCLass
     {
         $serviceConfig = new Config($this->storage['bucket'], $this->storage['AccessKey'], $this->storage['SecretKey']);
         $client = new Upyun($serviceConfig);
-        $filePath = $file['tmp_name'];
-        // 上传后保存的文件名
-        $name = $this->getName($file['name']);
-        $path = $this->getPath . $name;
+        $tmp_file = $file['tmp_name'];
         try {
-            $client->write($path, fopen($filePath, 'r'));
+            $client->write($this->filePath, fopen($tmp_file, 'r'));
             return array(
-                'path' => $path,
-                'name' => $name,
-                'url' => $this->storage['space_domain'] . '/' . $path,
+                'path' => $this->filePath,
+                'name' => $this->fileName,
+                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
                 'state' => 1,
             );
         } catch (\Exception $e) {
@@ -321,20 +338,17 @@ class UploadCLass
             'secret' => $this->storage['SecretKey'],
             'endpoint' => $this->storage['region']
         ]);
-        $filePath = $file['tmp_name'];
-        // 上传后保存的文件名
-        $name = $this->getName($file['name']);
-        $path = $this->getPath . $name;
+        $tmp_file = $file['tmp_name'];
         try {
             $obsClient->putObject([
                 'Bucket' => $this->storage['bucket'],
-                'Key' => $path,
-                'SourceFile' => $filePath  // localfile为待上传的本地文件路径，需要指定到具体的文件名
+                'Key' => $this->filePath,
+                'SourceFile' => $tmp_file  // localfile为待上传的本地文件路径，需要指定到具体的文件名
             ]);
             return array(
-                'path' => $path,
-                'name' => $name,
-                'url' => $this->storage['space_domain'] . '/' . $path,
+                'path' => $this->filePath,
+                'name' => $this->fileName,
+                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
                 'state' => 1,
             );
         } catch (\Exception $e) {

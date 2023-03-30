@@ -33,6 +33,8 @@ class Api extends BaseController
     public function upload(Request $request)
     {
         $key = $request->param("key");
+        $folder = $request->param("folder");
+
         if (!$key || $key == 'undefined' || $key == null) {
             return $this->create([], '未登陆或密钥key为空', 400);
         }
@@ -50,7 +52,7 @@ class Api extends BaseController
         }
 
         $role = RoleModel::find($user['role_id']);
-        $UploadCLass = new UploadCLass;
+        $UploadCLass = new UploadCLass($folder);
         $result = $UploadCLass->create($_FILES["file"], $role['storage_id']);
         if ($result['state'] == 1) {
             $img = new ImagesModel;
@@ -71,7 +73,7 @@ class Api extends BaseController
         }
     }
 
-  
+
 
     // 删除
     public function delete(Request $request)
@@ -111,6 +113,4 @@ class Api extends BaseController
             return $this->create('当前角色组没有删除权限', '删除失败', 400);
         }
     }
-
-    
 }
