@@ -1,3 +1,6 @@
 /.idea
 /.vscode
 *.log
+.user.ini
+.env
+install.lock
