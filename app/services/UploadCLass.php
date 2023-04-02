@@ -44,6 +44,11 @@ class UploadCLass
     private $filePath;
 
     /**
+     * 文件后缀
+     */
+    private $fileExt;
+
+    /**
      * 储存目录
      */
     private $folder;
@@ -58,18 +63,24 @@ class UploadCLass
         $this->folder = $folder;
     }
 
+    //获取文件后缀
+    public function getFileExt($name)
+    {
+        return pathinfo($name, PATHINFO_EXTENSION);
+    }
+
     // 生成文件名
     public function getFileName($file_path)
     {
         $hash = $this->getHash($file_path);
-        return substr($hash, -2);
+        return substr($hash, 2) . '.' . $this->fileExt;
     }
 
     // 生成上传路径
     public function getUploadPath($file_path, $folder = '')
     {
         $hash = $this->getHash($file_path);
-        $path = FOLDER . $folder . '/' . substr($hash, 0, 2);
+        $path = FOLDER . ($folder ? $folder . DIRECTORY_SEPARATOR : '') . substr($hash, 0, 2) . DIRECTORY_SEPARATOR;
         is_dir($path) || mkdir($path, 0777, true);
         return $path;
     }
@@ -90,6 +101,7 @@ class UploadCLass
     {
         $this->storage = StorageModel::find($sid);
 
+        $this->fileExt = $this->getFileExt($file['name']);
         $this->fileName = $this->getFileName($file['tmp_name']);
         $this->filePath = $this->getUploadPath($file['tmp_name'], $this->folder) . $this->fileName;
 
