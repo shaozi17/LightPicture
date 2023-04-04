@@ -23,8 +23,7 @@ use think\exception\ValidateException;
 use app\validate\Page as PageValidate;
 use app\services\UploadCLass;
 use app\model\System as SystemModel;
-
-
+use app\services\FileClass;
 use think\Request;
 
 class Api extends BaseController
@@ -33,7 +32,7 @@ class Api extends BaseController
     public function upload(Request $request)
     {
         $key = $request->param("key");
-        $folder = $request->param("folder");
+        $folder = $request->param("folder", '');
 
         if (!$key || $key == 'undefined' || $key == null) {
             return $this->create([], '未登陆或密钥key为空', 400);
@@ -52,28 +51,34 @@ class Api extends BaseController
         }
 
         $role = RoleModel::find($user['role_id']);
-        $UploadCLass = new UploadCLass($folder);
-        $result = $UploadCLass->create($_FILES["file"], $role['storage_id']);
+        $UploadCLass = new UploadCLass();
+
+        $file = new FileClass($_FILES['file'], $folder);
+        $result = $UploadCLass->create($file, $role['storage_id']);
+
         if ($result['state'] == 1) {
             $img = new ImagesModel;
             $img->save([
-                'user_id'  =>  $user['id'],
-                'storage_id' =>  $role['storage_id'],
-                'name' =>  $result['name'],
-                'size' =>  $_FILES["file"]['size'],
-                'path' =>  $result['path'],
-                'mime' =>  $_FILES["file"]['type'],
-                'url' =>  $result['url'],
-                'ip' =>  $request->ip(),
+                'user_id'    => $user['id'],
+                'storage_id' => $role['storage_id'],
+                'name'       => $result['name'],
+                'size'       => $_FILES["file"]['size'],
+                'path'       => $result['path'],
+                'hash'       => $result['hash'],
+                'mime'       => $_FILES["file"]['type'],
+                'url'        => $result['url'],
+                'ip'         => $request->ip(),
             ]);
             $this->setLog($user['id'], "上传了图片", "ID:" . $img['id'], $img['name'], 2);
-            return $this->create($img, '成功', 200);
+            return $this->create($img, 'succ', 200);
+        } elseif ($result['state'] == 2) {
+            $img = $result['img'];
+            $this->setLog($user['id'], "图片已存在", "ID:" . $img['id'], $img['name'], 2);
+            return $this->create($img, 'succ', 200);
         } else {
             return $this->create(null, $result['msg'], 400);
         }
     }
-
-
 
     // 删除
     public function delete(Request $request)
@@ -96,19 +101,19 @@ class Api extends BaseController
             $name = $imgs['name'];
             $imgs->delete();
             $this->setLog($uid, "删除了图片", "ID:" . $id, $name, 2);
-            return $this->create($name, '删除成功', 200);
+            return $this->create($name, '删除succ', 200);
         } else  if ($role['is_del_own'] == 1 && $imgs['user_id'] == $uid) {
             $UploadCLass->delete($imgs["path"], $imgs['storage_id']);
             $name = $imgs['name'];
             $imgs->delete();
             $this->setLog($uid, "删除了图片", "ID:" . $id, $name, 2);
-            return $this->create($name, '删除成功', 200);
+            return $this->create($name, '删除succ', 200);
         } else  if ($role['is_del_all'] == 1 && $imgs['storage_id'] == $role['storage_id']) {
             $UploadCLass->delete($imgs["path"], $imgs['storage_id']);
             $name = $imgs['name'];
             $imgs->delete();
             $this->setLog($uid, "删除了图片", "ID:" . $id, $name, 2);
-            return $this->create($name, '删除成功', 200);
+            return $this->create($name, '删除succ', 200);
         } else {
             return $this->create('当前角色组没有删除权限', '删除失败', 400);
         }

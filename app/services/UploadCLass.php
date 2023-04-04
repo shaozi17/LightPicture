@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace app\services;
 
+use app\model\Images as ImagesModel;
 use app\model\Storage as StorageModel;
 use OSS\OssClient;
 use OSS\Core\OssException;
@@ -34,76 +35,26 @@ class UploadCLass
     protected $storage = [];
 
     /**
-     * 文件名
-     */
-    private $fileName;
-
-    /**
-     * 文件路径
-     */
-    private $filePath;
-
-    /**
-     * 文件后缀
-     */
-    private $fileExt;
-
-    /**
-     * 储存目录
-     */
-    private $folder;
-
-    /**
-     * 文件哈希值
-     */
-    private string $fileHash = '';
-
-    public function __construct($folder = '')
-    {
-        $this->folder = $folder;
-    }
-
-    //获取文件后缀
-    public function getFileExt($name)
-    {
-        return pathinfo($name, PATHINFO_EXTENSION);
-    }
-
-    // 生成文件名
-    public function getFileName($file_path)
-    {
-        $hash = $this->getHash($file_path);
-        return substr($hash, 2) . '.' . $this->fileExt;
-    }
-
-    // 生成上传路径
-    public function getUploadPath($file_path, $folder = '')
-    {
-        $hash = $this->getHash($file_path);
-        $path = FOLDER . ($folder ? $folder . DIRECTORY_SEPARATOR : '') . substr($hash, 0, 2) . DIRECTORY_SEPARATOR;
-        is_dir($path) || mkdir($path, 0777, true);
-        return $path;
-    }
-
-    public function getHash($file_path, $algo = 'md5')
-    {
-        $this->fileHash || $this->fileHash = hash_file($algo, $file_path);
-        return $this->fileHash;
-    }
-
-    /**
      * 创建文件
      *
      * @param $file
      * @param $sid
      */
-    public function create($file, $sid)
+    public function create(FileClass $file, $sid)
     {
         $this->storage = StorageModel::find($sid);
 
-        $this->fileExt = $this->getFileExt($file['name']);
-        $this->fileName = $this->getFileName($file['tmp_name']);
-        $this->filePath = $this->getUploadPath($file['tmp_name'], $this->folder) . $this->fileName;
+        //检查文件是否已存在
+        $img = ImagesModel::where([
+            'hash'       => $file->getHash(),
+            'storage_id' => $sid
+        ])->find();
+        if ($img) {
+            return array(
+                'img' => $img,
+                'state' => 2,
+            );
+        }
 
         switch ($this->storage['type']) {
             case 'local':
@@ -168,23 +119,22 @@ class UploadCLass
 
     /**
      * 本地上传方法
-     * @param  \think\Request  $file
+     * @param  FileClass  $file
      */
-    function location_upload($file)
+    public function location_upload(FileClass $file)
     {
-
-        // 获取网站协议
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-
-        $tmp_file = $file['tmp_name'];
+        $tmp_file = $file->tmpFile['tmp_name'];
 
         // 本地上传
-        if (move_uploaded_file($tmp_file, $this->filePath)) {
-            $url = $protocol . $_SERVER['HTTP_HOST'] . '/' . $this->filePath;
+        $uploadPath = FOLDER . $file->getFilePath();
+        is_dir(dirname($uploadPath)) || mkdir(dirname($uploadPath), 0777, true);
+
+        if (move_uploaded_file($tmp_file, $uploadPath)) {
             return array(
-                'path' => $this->filePath,
-                'name' => $this->fileName,
-                'url' => $url,
+                'hash'  => $file->getHash(),
+                'path'  => $uploadPath,
+                'name'  => $file->getFileName(),
+                'url'   => $file->getFilePath(),
                 'state' => 1,
             );
         } else {
@@ -198,18 +148,19 @@ class UploadCLass
 
     /**
      * 阿里云OSS上传方法
-     * @param  \think\Request  $file
+     * @param  FileClass  $file
      */
-    public function aliyuncs_upload($file)
+    public function aliyuncs_upload(FileClass $file)
     {
-        $tmp_file = $file['tmp_name'];
+        $tmp_file = $file->tmpFile['tmp_name'];
         try {
             $ossClient = new OssClient($this->storage['AccessKey'], $this->storage['SecretKey'], $this->storage['region']);
-            $ossClient->uploadFile($this->storage['bucket'], $this->filePath, $tmp_file);
+            $ossClient->uploadFile($this->storage['bucket'], $file->getFilePath(), $tmp_file);
             return array(
-                'path' => $this->filePath,
-                'name' => $this->fileName,
-                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
+                'hash' => $file->getHash(),
+                'path' => $file->getFilePath(),
+                'name' => $file->getFileName(),
+                'url' => $file->getFilePath(),
                 'state' => 1,
             );
         } catch (OssException $e) {
@@ -222,9 +173,9 @@ class UploadCLass
 
     /**
      * 腾讯云cos上传方法
-     * @param  \think\Request  $file
+     * @param  FileClass  $file
      */
-    function tencent_upload($file)
+    function tencent_upload(FileClass $file)
     {
         $cosClient = new \Qcloud\Cos\Client(
             array(
@@ -236,17 +187,18 @@ class UploadCLass
                 )
             )
         );
-        $tmp_file = $file['tmp_name'];
+        $tmp_file = $file->tmpFile['tmp_name'];
         try {
             $cosClient->upload(
                 $bucket = $this->storage['bucket'], //格式：BucketName-APPID
-                $key = $this->filePath,
+                $key = $file->getFilePath(),
                 $body = fopen($tmp_file, 'rb')
             );
             return array(
-                'path' => $this->filePath,
-                'name' => $this->fileName,
-                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
+                'hash' => $file->getHash(),
+                'path' => $file->getFilePath(),
+                'name' => $file->getFileName(),
+                'url' => $file->getFilePath(),
                 'state' => 1,
             );
         } catch (\Exception $e) {
@@ -259,7 +211,6 @@ class UploadCLass
 
     /**
      * 腾讯云cos删除方法
-     * @param  \think\Request  $file
      */
     function tencent_delete($path)
     {
@@ -284,9 +235,9 @@ class UploadCLass
 
     /**
      * 七牛云上传方法
-     * @param  \think\Request  $file
+     * @param  FileClass  $file
      */
-    function qiniu_upload($file)
+    function qiniu_upload(FileClass $file)
     {
         $auth = new Auth($this->storage['AccessKey'], $this->storage['SecretKey']);
         // 生成上传 Token
@@ -294,9 +245,9 @@ class UploadCLass
         // 构建 UploadManager 对象
         $uploadMgr = new UploadManager();
         // 要上传文件的本地路径
-        $tmp_file = $file['tmp_name'];
+        $tmp_file = $file->tmpFile['tmp_name'];
         // 上传到七牛后保存的文件名
-        list($ret, $err) = $uploadMgr->putFile($token, $this->filePath, $tmp_file);
+        list($ret, $err) = $uploadMgr->putFile($token, $file->getFilePath(), $tmp_file);
 
         if ($err !== null) {
             return array(
@@ -305,9 +256,10 @@ class UploadCLass
             );
         } else {
             return array(
-                'path' => $this->filePath,
-                'name' => $this->fileName,
-                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
+                'hash'  => $file->getHash(),
+                'path'  => $file->getFilePath(),
+                'name'  => $file->getFileName(),
+                'url'   => $file->getFilePath(),
                 'state' => 1,
             );
         }
@@ -316,19 +268,20 @@ class UploadCLass
 
     /**
      * 又拍云上传方法
-     * @param  \think\Request  $file
+     * @param  FileClass  $file
      */
-    function upyun_upload($file)
+    function upyun_upload(FileClass $file)
     {
         $serviceConfig = new Config($this->storage['bucket'], $this->storage['AccessKey'], $this->storage['SecretKey']);
         $client = new Upyun($serviceConfig);
-        $tmp_file = $file['tmp_name'];
+        $tmp_file = $file->tmpFile['tmp_name'];
         try {
-            $client->write($this->filePath, fopen($tmp_file, 'r'));
+            $client->write($file->getFilePath(), fopen($tmp_file, 'r'));
             return array(
-                'path' => $this->filePath,
-                'name' => $this->fileName,
-                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
+                'hash'  => $file->getHash(),
+                'path'  => $file->getFilePath(),
+                'name'  => $file->getFileName(),
+                'url'   => $file->getFilePath(),
                 'state' => 1,
             );
         } catch (\Exception $e) {
@@ -341,26 +294,27 @@ class UploadCLass
 
     /**
      * 华为云上传方法
-     * @param  \think\Request  $file
+     * @param FileClass  $file
      */
-    function hwyun_upload($file)
+    function hwyun_upload(FileClass $file)
     {
         $obsClient = new ObsClient([
             'key' => $this->storage['AccessKey'],
             'secret' => $this->storage['SecretKey'],
             'endpoint' => $this->storage['region']
         ]);
-        $tmp_file = $file['tmp_name'];
+        $tmp_file = $file->tmpFile['tmp_name'];
         try {
             $obsClient->putObject([
                 'Bucket' => $this->storage['bucket'],
-                'Key' => $this->filePath,
+                'Key' => $file->getFilePath(),
                 'SourceFile' => $tmp_file  // localfile为待上传的本地文件路径，需要指定到具体的文件名
             ]);
             return array(
-                'path' => $this->filePath,
-                'name' => $this->fileName,
-                'url' => $this->storage['space_domain'] . '/' . $this->filePath,
+                'hash'  => $file->getHash(),
+                'path'  => $file->getFilePath(),
+                'name'  => $file->getFileName(),
+                'url'   => $file->getFilePath(),
                 'state' => 1,
             );
         } catch (\Exception $e) {
@@ -373,7 +327,6 @@ class UploadCLass
 
     /**
      * 华为云删除方法
-     * @param  \think\Request  $file
      */
     function hwyun_delete($path)
     {
