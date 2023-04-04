@@ -69,10 +69,14 @@ class Api extends BaseController
                 'url'        => $result['url'],
                 'ip'         => $request->ip(),
             ]);
+            $img->visible(['name', 'size', 'hash', 'url', 'url_path', 'create_time']);
+
             $this->setLog($user['id'], "上传了图片", "ID:" . $img['id'], $img['name'], 2);
             return $this->create($img, 'succ', 200);
         } elseif ($result['state'] == 2) {
-            $img = $result['img'];
+            $img = $result['img']->append(['url_path']);
+            $img->visible(['name', 'size', 'hash', 'url', 'url_path', 'create_time']);
+
             $this->setLog($user['id'], "图片已存在", "ID:" . $img['id'], $img['name'], 2);
             return $this->create($img, 'succ', 200);
         } else {

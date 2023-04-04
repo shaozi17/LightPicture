@@ -27,6 +27,11 @@ class Images extends Model
         return $this->storage->space_domain . '/' . $value;
     }
 
+    public function getUrlPathAttr($value, $data)
+    {
+        return $data['url'];
+    }
+
     public static function getImgs($role, $data)
     {
         if ($role['is_admin'] == 1 || $role['is_read_all'] == 1) {
