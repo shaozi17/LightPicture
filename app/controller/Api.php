@@ -31,30 +31,34 @@ class Api extends BaseController
     // 上传
     public function upload(Request $request)
     {
-        $key = $request->param("key");
+        $key    = $request->param("key");
         $folder = $request->param("folder", '');
+        $file   = $request->file('file');
 
         if (!$key || $key == 'undefined' || $key == null) {
             return $this->create([], '未登陆或密钥key为空', 400);
         }
-        if ($_FILES["file"]["error"] > 0) return $this->create([], '上传出错', 400);
+
+        if (!$file->isValid()) return $this->create([], '上传出错', 400);
+
+        $file_size = $file->getSize();
+        $file_mime = $file->getOriginalMime();
         $max_size = SystemModel::where('key', "upload_max")->value("value");
-        if ($_FILES["file"]['size'] > $max_size * 1024 * 1024) {
-            return $this->create(null, '图片大小超出限制', 400);
+        if ($file_size > $max_size * 1024 * 1024) {
+            return $this->create(null, '文件大小超出限制', 400);
         }
+
         $user = UserModel::where("Secret_key", $key)->find();
         if (!isset($user) || $user['state'] == 0) return $this->create(null, '用户不存在或被停用', 400);
 
         $allSize = ImagesModel::where('user_id', $user['id'])->sum('size');
-        if ($allSize + $_FILES["file"]['size'] > $user['capacity']) {
+        if ($allSize + $file_size > $user['capacity']) {
             return $this->create(null, '您的存储配额不足', 400);
         }
 
         $role = RoleModel::find($user['role_id']);
         $UploadCLass = new UploadCLass();
-
-        $file = new FileClass($_FILES['file'], $folder);
-        $result = $UploadCLass->create($file, $role['storage_id']);
+        $result = $UploadCLass->create(new FileClass($file, $folder), $role['storage_id']);
 
         if ($result['state'] == 1) {
             $img = new ImagesModel;
@@ -62,13 +66,15 @@ class Api extends BaseController
                 'user_id'    => $user['id'],
                 'storage_id' => $role['storage_id'],
                 'name'       => $result['name'],
-                'size'       => $_FILES["file"]['size'],
+                'size'       => $file_size,
                 'path'       => $result['path'],
                 'hash'       => $result['hash'],
-                'mime'       => $_FILES["file"]['type'],
+                'mime'       => $file_mime,
                 'url'        => $result['url'],
                 'ip'         => $request->ip(),
             ]);
+
+            $img->append(['url_path']);
             $img->visible(['name', 'size', 'hash', 'url', 'url_path', 'create_time']);
 
             $this->setLog($user['id'], "上传了图片", "ID:" . $img['id'], $img['name'], 2);

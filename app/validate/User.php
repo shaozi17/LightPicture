@@ -10,7 +10,7 @@
 // +----------------------------------------------------------------------
 // | Author: Team <admin@osuu.net>
 // +----------------------------------------------------------------------
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace app\validate;
 
@@ -23,11 +23,9 @@ class User extends Validate
      * 格式：'字段名'	=>	['规则1','规则2'...]
      *
      * @var array
-     */	
-	protected $rule = [
-        'email|邮箱'      =>      'require|/^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/',
+     */
+    protected $rule = [
+        // 'email|邮箱'      =>      'require|/^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/',
         'capacity|配额'      =>      'require',
     ];
-    
-   
 }

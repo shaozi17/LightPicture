@@ -7,14 +7,19 @@ namespace app\services;
 class FileClass
 {
     /**
-     * tmpFile
+     * @var \think\file\UploadedFile
      */
-    public $tmpFile = [];
+    public $tmpFile;
 
     /**
      * 文件名
      */
     public string $fileName;
+
+    /**
+     * 文件目录
+     */
+    public string $fileDir;
 
     /**
      * 文件路径
@@ -36,7 +41,16 @@ class FileClass
      */
     public string $fileHash;
 
-    public function __construct($file, $folder = '')
+    /**
+     * 获取文件哈希的方式
+     */
+    private string $hashType = 'md5';
+
+    /**
+     * @param \think\file\UploadedFile $file
+     * @param string $folder 上传目录
+     */
+    public function __construct(\think\file\UploadedFile $file, $folder = '')
     {
         $this->tmpFile = $file;
         $this->folder = $folder;
@@ -45,7 +59,7 @@ class FileClass
     //获取文件后缀
     public function getFileExt(): string
     {
-        return $this->fileExt ?? $this->fileExt = pathinfo($this->tmpFile['name'], PATHINFO_EXTENSION);
+        return $this->fileExt ?? $this->fileExt = $this->tmpFile->getOriginalExtension();
     }
 
     // 生成文件名
@@ -54,22 +68,33 @@ class FileClass
         return $this->fileName ?? $this->fileName = substr($this->getHash(), 2) . '.' . $this->getFileExt();
     }
 
-    // 生成文件路径
-    public function getFilePath(): string
+    // 获取文件目录
+    public function getFileDir(): string
     {
-        if (in_array($this->getFileExt(), ['jpg', 'jpeg', 'gif', 'png', 'ico', 'svg', 'bmp', 'wbpm'])) {
-            $folders = ['images', $this->folder];
-        } else {
-            $folders = ['other', $this->folder];
-        }
-
-        $this->folder = implode(DIRECTORY_SEPARATOR, array_filter($folders)) . DIRECTORY_SEPARATOR;
-
-        return $this->filePath ?? $this->filePath = $this->folder . substr($this->getHash(), 0, 2) . DIRECTORY_SEPARATOR . $this->getFileName();
+        $this->folder = trim($this->folder, DIRECTORY_SEPARATOR);
+        return $this->fileDir ?? $this->fileDir = $this->folder . DIRECTORY_SEPARATOR . substr($this->getHash(), 0, 2) . DIRECTORY_SEPARATOR;
     }
 
-    public function getHash($algo = 'md5'): string
+    // 获取文件路径
+    public function getFilePath(): string
     {
-        return $this->fileHash ?? $this->fileHash = hash_file($algo, $this->tmpFile['tmp_name']);
+        return $this->filePath ?? $this->filePath = $this->getFileDir() . $this->getFileName();
+    }
+
+    public function getHash(): string
+    {
+        return $this->fileHash ?? $this->fileHash = $this->tmpFile->hash($this->hashType);
+    }
+
+    /**
+     * 上传文件
+     * @access public
+     * @param string      $directory 保存路径
+     * @param string|null $name      保存的文件名
+     * @return File
+     */
+    public function move(string $directory, string $name = null): \think\File
+    {
+        return $this->tmpFile->move($directory, $name);
     }
 }

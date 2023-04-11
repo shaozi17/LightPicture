@@ -123,23 +123,23 @@ class UploadCLass
      */
     public function location_upload(FileClass $file)
     {
-        $tmp_file = $file->tmpFile['tmp_name'];
-
         // 本地上传
-        $uploadPath = FOLDER . $file->getFilePath();
-        is_dir(dirname($uploadPath)) || mkdir(dirname($uploadPath), 0777, true);
+        $fileDir = FOLDER . $this->storage['bucket'] . DIRECTORY_SEPARATOR . $file->getFileDir();
+        $filePath = $fileDir . $file->getFileName();
+        is_dir($fileDir) || mkdir($fileDir, 0777, true);
 
-        if (move_uploaded_file($tmp_file, $uploadPath)) {
+        try {
+            $new_file = $file->move($fileDir, $file->getFileName());
             return array(
                 'hash'  => $file->getHash(),
-                'path'  => $uploadPath,
+                'path'  => $filePath,
                 'name'  => $file->getFileName(),
                 'url'   => $file->getFilePath(),
                 'state' => 1,
             );
-        } else {
+        } catch (\Exception $e) {
             return array(
-                'msg' => '上传失败',
+                'msg' => '上传失败:' . $e->getMessage(),
                 'state' => 0,
             );
         }
@@ -152,7 +152,7 @@ class UploadCLass
      */
     public function aliyuncs_upload(FileClass $file)
     {
-        $tmp_file = $file->tmpFile['tmp_name'];
+        $tmp_file = $file->tmpFile->getPathname();
         try {
             $ossClient = new OssClient($this->storage['AccessKey'], $this->storage['SecretKey'], $this->storage['region']);
             $ossClient->uploadFile($this->storage['bucket'], $file->getFilePath(), $tmp_file);
@@ -187,7 +187,7 @@ class UploadCLass
                 )
             )
         );
-        $tmp_file = $file->tmpFile['tmp_name'];
+        $tmp_file = $file->tmpFile->getPathname();
         try {
             $cosClient->upload(
                 $bucket = $this->storage['bucket'], //格式：BucketName-APPID
@@ -245,7 +245,7 @@ class UploadCLass
         // 构建 UploadManager 对象
         $uploadMgr = new UploadManager();
         // 要上传文件的本地路径
-        $tmp_file = $file->tmpFile['tmp_name'];
+        $tmp_file = $file->tmpFile->getPathname();
         // 上传到七牛后保存的文件名
         list($ret, $err) = $uploadMgr->putFile($token, $file->getFilePath(), $tmp_file);
 
@@ -274,7 +274,7 @@ class UploadCLass
     {
         $serviceConfig = new Config($this->storage['bucket'], $this->storage['AccessKey'], $this->storage['SecretKey']);
         $client = new Upyun($serviceConfig);
-        $tmp_file = $file->tmpFile['tmp_name'];
+        $tmp_file = $file->tmpFile->getPathname();
         try {
             $client->write($file->getFilePath(), fopen($tmp_file, 'r'));
             return array(
@@ -303,7 +303,7 @@ class UploadCLass
             'secret' => $this->storage['SecretKey'],
             'endpoint' => $this->storage['region']
         ]);
-        $tmp_file = $file->tmpFile['tmp_name'];
+        $tmp_file = $file->tmpFile->getPathname();
         try {
             $obsClient->putObject([
                 'Bucket' => $this->storage['bucket'],
