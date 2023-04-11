@@ -360,7 +360,7 @@ VALUES (
         'basics',
         '允许上传后缀',
         NULL,
-        'jpg,jpeg,gif,png,ico,svg',
+        'jpg,jpeg,gif,png,ico,svg,bmp,wbmp',
         NULL
     ), (
         13,
@@ -525,8 +525,7 @@ ALTER TABLE `osuu_user`
 ADD PRIMARY KEY (`id`),
 ADD
     UNIQUE KEY `username` (`username`),
-ADD
-    UNIQUE KEY `email` (`email`);
+ADD UNIQUE KEY `email` (`email`);
 
 --
 
