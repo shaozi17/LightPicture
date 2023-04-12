@@ -10,7 +10,7 @@
 // +----------------------------------------------------------------------
 // | Author: Team <admin@osuu.net>
 // +----------------------------------------------------------------------
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace app\validate;
 
@@ -23,11 +23,9 @@ class ResetPwd extends Validate
      * 格式：'字段名'	=>	['规则1','规则2'...]
      *
      * @var array
-     */	
-	protected $rule = [
+     */
+    protected $rule = [
         'oldPwd|当前密码'      =>      'require',
-        'newPwd|新密码'    =>      'require|/^[a-zA-Z0-9]{6,10}$/',
+        // 'newPwd|新密码'    =>      'require|/^[a-zA-Z0-9]{6,10}$/',
     ];
-    
-   
 }
