@@ -78,4 +78,7 @@ Route::group('updade', function () {
 Route::group('api', function () {
 	Route::post('upload', 'Api/upload');
 	Route::delete('delete', 'Api/delete');
+	Route::miss(function () {
+		return '404';
+	}, 'get');
 });
