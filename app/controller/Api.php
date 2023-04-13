@@ -43,6 +43,11 @@ class Api extends BaseController
 
         $file_size = $file->getSize();
         $file_mime = $file->getOriginalMime();
+        $file_ext = $file->extension();
+
+        if (empty($file_ext)) {
+            return $this->create(null, '文件拓展名错误', 400);
+        }
         $max_size = SystemModel::where('key', "upload_max")->value("value");
         if ($file_size > $max_size * 1024 * 1024) {
             return $this->create(null, '文件大小超出限制', 400);
