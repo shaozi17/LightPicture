@@ -59,7 +59,7 @@ class FileClass
     //获取文件后缀
     public function getFileExt(): string
     {
-        return $this->fileExt ?? $this->fileExt = $this->tmpFile->getOriginalExtension();
+        return $this->fileExt ?? $this->fileExt = $this->tmpFile->extension();
     }
 
     // 生成文件名
@@ -71,7 +71,7 @@ class FileClass
     // 获取文件目录
     public function getFileDir(): string
     {
-        $this->folder = trim($this->folder, DIRECTORY_SEPARATOR);
+        $this->folder = trim(strtolower($this->folder), DIRECTORY_SEPARATOR);
         return $this->fileDir ?? $this->fileDir = $this->folder . DIRECTORY_SEPARATOR . substr($this->getHash(), 0, 2) . DIRECTORY_SEPARATOR;
     }
 
