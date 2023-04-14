@@ -4,3 +4,4 @@
 .user.ini
 .env
 install.lock
+/public/.well-known
