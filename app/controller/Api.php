@@ -41,15 +41,13 @@ class Api extends BaseController
 
         if (!$file->isValid()) return $this->create([], '上传出错', 400);
 
-        $file_size = $file->getSize();
-        $file_mime = $file->getOriginalMime();
-        $file_ext = $file->extension();
+        $file = new FileClass($file, $folder);
 
-        if (empty($file_ext)) {
+        if (empty($file->getFileExt())) {
             return $this->create(null, '文件拓展名错误', 400);
         }
         $max_size = SystemModel::where('key', "upload_max")->value("value");
-        if ($file_size > $max_size * 1024 * 1024) {
+        if ($file->getFileSize() > $max_size * 1024 * 1024) {
             return $this->create(null, '文件大小超出限制', 400);
         }
 
@@ -57,13 +55,13 @@ class Api extends BaseController
         if (!isset($user) || $user['state'] == 0) return $this->create(null, '用户不存在或被停用', 400);
 
         $allSize = ImagesModel::where('user_id', $user['id'])->sum('size');
-        if ($allSize + $file_size > $user['capacity']) {
+        if ($allSize + $file->getFileSize() > $user['capacity']) {
             return $this->create(null, '您的存储配额不足', 400);
         }
 
         $role = RoleModel::find($user['role_id']);
         $UploadCLass = new UploadCLass();
-        $result = $UploadCLass->create(new FileClass($file, $folder), $role['storage_id']);
+        $result = $UploadCLass->create($file, $role['storage_id']);
 
         if ($result['state'] == 1) {
             $img = new ImagesModel;
@@ -71,10 +69,10 @@ class Api extends BaseController
                 'user_id'    => $user['id'],
                 'storage_id' => $role['storage_id'],
                 'name'       => $result['name'],
-                'size'       => $file_size,
+                'size'       => $file->getFileSize(),
                 'path'       => $result['path'],
                 'hash'       => $result['hash'],
-                'mime'       => $file_mime,
+                'mime'       => $file->getFileMime(),
                 'url'        => $result['url'],
                 'ip'         => $request->ip(),
             ]);

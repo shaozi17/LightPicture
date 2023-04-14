@@ -7,9 +7,19 @@ namespace app\services;
 class FileClass
 {
     /**
-     * @var \think\file\UploadedFile
+     * @var \think\File
      */
     public $tmpFile;
+
+    /**
+     * 文件大小
+     */
+    public int $fileSize;
+
+    /**
+     * 文件Mime
+     */
+    public string $fileMime;
 
     /**
      * 文件名
@@ -46,11 +56,13 @@ class FileClass
      */
     private string $hashType = 'md5';
 
+    private static $mimes;
+
     /**
-     * @param \think\file\UploadedFile $file
+     * @param \think\File $file
      * @param string $folder 上传目录
      */
-    public function __construct(\think\file\UploadedFile $file, $folder = '')
+    public function __construct(\think\File $file, $folder = '')
     {
         $this->tmpFile = $file;
         $this->folder = $folder;
@@ -84,6 +96,26 @@ class FileClass
     public function getHash(): string
     {
         return $this->fileHash ?? $this->fileHash = $this->tmpFile->hash($this->hashType);
+    }
+
+    public function getFileSize(): int
+    {
+        return $this->fileSize ?? $this->fileSize = $this->tmpFile->getSize();
+    }
+
+    public function getFileMime(): string
+    {
+        if (!isset($this->fileMime)) {
+            if ($this->tmpFile instanceof \think\file\UploadedFile) {
+                $this->fileMime = $this->tmpFile->getOriginalMime();
+            } else {
+                self::$mimes = self::$mimes ?? require(root_path() . 'extend/mimes.php');
+                $ext = strtolower(pathinfo($this->tmpFile->getPathname(), PATHINFO_EXTENSION));
+                $this->fileMime = self::$mimes[$ext];
+            }
+        }
+
+        return $this->fileMime;
     }
 
     /**

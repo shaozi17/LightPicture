@@ -129,7 +129,9 @@ class UploadCLass
         is_dir($fileDir) || mkdir($fileDir, 0777, true);
 
         try {
-            $new_file = $file->move($fileDir, $file->getFileName());
+            if (!file_exists($filePath)) {
+                $file->move($fileDir, $file->getFileName());
+            }
             return array(
                 'hash'  => $file->getHash(),
                 'path'  => $filePath,
