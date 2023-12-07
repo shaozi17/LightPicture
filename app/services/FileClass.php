@@ -14,47 +14,47 @@ class FileClass
     /**
      * 文件大小
      */
-    public int $fileSize;
+    public $fileSize;
 
     /**
      * 文件Mime
      */
-    public string $fileMime;
+    public $fileMime;
 
     /**
      * 文件名
      */
-    public string $fileName;
+    public $fileName;
 
     /**
      * 文件目录
      */
-    public string $fileDir;
+    public $fileDir;
 
     /**
      * 文件路径
      */
-    public string $filePath;
+    public $filePath;
 
     /**
      * 文件后缀
      */
-    public string $fileExt;
+    public $fileExt;
 
     /**
      * 储存目录
      */
-    public string $folder;
+    public $folder;
 
     /**
      * 文件哈希值
      */
-    public string $fileHash;
+    public $fileHash;
 
     /**
      * 获取文件哈希的方式
      */
-    private string $hashType = 'md5';
+    private $hashType = 'md5';
 
     private static $mimes;
 
